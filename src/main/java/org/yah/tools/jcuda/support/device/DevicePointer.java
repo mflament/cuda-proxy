@@ -5,7 +5,6 @@ import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 import org.yah.tools.jcuda.support.CUctx_flags;
 import org.yah.tools.jcuda.support.CudaContextPointer;
-import org.yah.tools.jcuda.support.DriverSupport;
 
 import static org.yah.tools.jcuda.support.DriverSupport.check;
 import static org.yah.tools.jcuda.support.DriverSupport.driverAPI;

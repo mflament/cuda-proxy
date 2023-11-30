@@ -57,6 +57,20 @@ class CudaModuleBuilderTest {
                 int actual = hostMemory.getInt(i * Integer.BYTES);
                 assertEquals(expected, actual);
             }
+            CudaContextPointer.synchronize();
+
+            DeviceIntArray aIntArray = new DeviceIntArray(aPtr, N);
+            DeviceIntArray bIntArray = new DeviceIntArray(bPtr, N);
+            DeviceIntArray cIntArray = new DeviceIntArray(cPtr, N);
+            module.sum2(N, aIntArray, bIntArray, cIntArray);
+            CudaContextPointer.synchronize();
+
+            check(driverAPI().cuMemcpyDtoH(hostMemory, cPtr, N * (long) Integer.BYTES));
+            for (int i = 0; i < N; i++) {
+                int expected = a[i] + b[i];
+                int actual = hostMemory.getInt(i * Integer.BYTES);
+                assertEquals(expected, actual);
+            }
         }
     }
 
@@ -88,7 +102,7 @@ class CudaModuleBuilderTest {
         void sum(@GridDim(dim = DimName.x, exposed = false) int gridDimX, int N, Pointer a, Pointer b, Pointer c);
 
         @Kernel(name = "sum", blockDim = {BLOCK_DIM, 1, 1})
-        void sum2(@GridDim(dim = DimName.x, converter = DeviceIntArrayGridDimConverter.class) DeviceIntArray a, Pointer b, Pointer c);
+        void sum2(int N, @GridDim(dim = DimName.x, converter = DeviceIntArrayGridDimConverter.class) DeviceIntArray a, DeviceIntArray b, DeviceIntArray c);
     }
 
     public static final class DeviceIntArrayGridDimConverter implements GridDimConverter<DeviceIntArray>, GridDimsConverter<DeviceIntArray> {
@@ -107,8 +121,8 @@ class CudaModuleBuilderTest {
     public static final class DeviceIntArray extends Pointer {
         private final int length;
 
-        public DeviceIntArray(long peer, int length) {
-            super(peer);
+        public DeviceIntArray(Pointer ptr, int length) {
+            super(Pointer.nativeValue(ptr));
             this.length = length;
         }
 
