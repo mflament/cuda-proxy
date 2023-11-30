@@ -4,7 +4,9 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
-import org.yah.tools.jcuda.support.DriverSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.yah.tools.jcuda.support.CudaException;
 import org.yah.tools.jcuda.support.module.annotations.GridDim;
 import org.yah.tools.jcuda.support.module.annotations.GridDims;
 import org.yah.tools.jcuda.support.module.annotations.Kernel;
@@ -23,12 +25,18 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.yah.tools.jcuda.jna.RuntimeAPI.CUDA_ERROR_INVALID_IMAGE;
+import static org.yah.tools.jcuda.support.DriverSupport.check;
+import static org.yah.tools.jcuda.support.DriverSupport.driverAPI;
+import static org.yah.tools.jcuda.support.NTSHelper.readNTS;
 import static org.yah.tools.jcuda.support.NTSHelper.writeNTS;
 
 public class CudaModuleBuilder {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CudaModuleBuilder.class);
+
     private final ServiceFactory serviceFactory;
-    private final LinkedList<TypeWriter<?>> typeWriters = new LinkedList<>();
+    private final LinkedList<TypeArgumentWriter<?>> typeWriters = new LinkedList<>();
 
     public CudaModuleBuilder() {
         this(new DefaultServiceFactory());
@@ -39,17 +47,17 @@ public class CudaModuleBuilder {
         typeWriters.addAll(createDefaultConverters());
     }
 
-    private Collection<TypeWriter<?>> createDefaultConverters() {
+    private Collection<TypeArgumentWriter<?>> createDefaultConverters() {
         //TODO : primitive, enum
         return List.of(
-                new TypeWriter<>(Byte.TYPE, DefaultWriters::writeByte),
-                new TypeWriter<>(Short.TYPE, DefaultWriters::writeShort),
-                new TypeWriter<>(Integer.TYPE, DefaultWriters::writeInt),
-                new TypeWriter<>(Long.TYPE, DefaultWriters::writeLong),
-                new TypeWriter<>(Float.TYPE, DefaultWriters::writeFloat),
-                new TypeWriter<>(Double.TYPE, DefaultWriters::writeDouble),
-                new TypeWriter<>(Enum.class, DefaultWriters::writeEnum),
-                new TypeWriter<>(Pointer.class, DefaultWriters::writePointer)
+                new TypeArgumentWriter<>(Byte.TYPE, DefaultWriters::writeByte),
+                new TypeArgumentWriter<>(Short.TYPE, DefaultWriters::writeShort),
+                new TypeArgumentWriter<>(Integer.TYPE, DefaultWriters::writeInt),
+                new TypeArgumentWriter<>(Long.TYPE, DefaultWriters::writeLong),
+                new TypeArgumentWriter<>(Float.TYPE, DefaultWriters::writeFloat),
+                new TypeArgumentWriter<>(Double.TYPE, DefaultWriters::writeDouble),
+                new TypeArgumentWriter<>(Enum.class, DefaultWriters::writeEnum),
+                new TypeArgumentWriter<>(Pointer.class, DefaultWriters::writePointer)
         );
     }
 
@@ -96,7 +104,7 @@ public class CudaModuleBuilder {
     }
 
     public <T> CudaModuleBuilder addTypeConverter(Class<T> parameterType, KernelArgumentWriter<T> converter) {
-        typeWriters.addFirst(new TypeWriter<>(parameterType, converter));
+        typeWriters.addFirst(new TypeArgumentWriter<>(parameterType, converter));
         return this;
     }
 
@@ -105,7 +113,14 @@ public class CudaModuleBuilder {
         List<Method> kernelMethods = collectKernelMethods(nativeInterface);
         try (Memory ptx = program.getPTX()) {
             PointerByReference module = new PointerByReference();
-            DriverSupport.check(DriverSupport.driverAPI().cuModuleLoadData(module, ptx));
+            try {
+                check(driverAPI().cuModuleLoadData(module, ptx));
+            } catch (CudaException e) {
+                if (e.getStatus() == CUDA_ERROR_INVALID_IMAGE)
+                    LOGGER.info("PTX:\n{}", readNTS(ptx, ptx.size()));
+                throw e;
+            }
+
             List<KernelInvocation> kernelInvocations = new ArrayList<>();
             for (Method method : kernelMethods) {
                 Kernel annotation = checkKernel(method);
@@ -146,7 +161,7 @@ public class CudaModuleBuilder {
                 throw new KernelBindingException("Incompatible KernelArgumentWriter<" + parameterType.getName() + ">, parameter '" + parameter.getName() + "'  type is " + parameter.getType());
         } else {  // resolved converter from typeConverters
             Class<?> parameterType = parameter.getType();
-            TypeWriter<?> typeWriter = typeWriters.stream()
+            TypeArgumentWriter<?> typeWriter = typeWriters.stream()
                     .filter(tc -> tc.accept(parameterType))
                     .findFirst()
                     .orElseThrow(() -> new KernelBindingException("No KernelArgumentWriter resolved for parameter " + parameter.getName() + " with type " + parameter.getType().getTypeName()));
@@ -267,7 +282,7 @@ public class CudaModuleBuilder {
         PointerByReference hfunc = new PointerByReference();
         try (Memory namePtr = new Memory(name.length() + 1)) {
             writeNTS(namePtr, name);
-            DriverSupport.check(DriverSupport.driverAPI().cuModuleGetFunction(hfunc, hmod.getValue(), namePtr));
+            check(driverAPI().cuModuleGetFunction(hfunc, hmod.getValue(), namePtr));
         }
         return hfunc;
     }
@@ -294,11 +309,11 @@ public class CudaModuleBuilder {
         }
     }
 
-    private static final class TypeWriter<T> {
+    private static final class TypeArgumentWriter<T> {
         private final Class<T> type;
         private final KernelArgumentWriter<T> writer;
 
-        public TypeWriter(Class<T> type, KernelArgumentWriter<T> writer) {
+        public TypeArgumentWriter(Class<T> type, KernelArgumentWriter<T> writer) {
             this.type = type;
             this.writer = writer;
         }

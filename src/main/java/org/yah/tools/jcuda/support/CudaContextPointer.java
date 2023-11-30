@@ -1,16 +1,30 @@
 package org.yah.tools.jcuda.support;
 
+import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 
-public class CudaContextPointer extends PointerByReference  {
-    public CudaContextPointer() {
+import static org.yah.tools.jcuda.support.DriverSupport.*;
+
+public class CudaContextPointer extends Pointer {
+    public CudaContextPointer(PointerByReference ref) {
+        super(Pointer.nativeValue(ref.getValue()));
     }
 
     public void setCurrent() {
-        DriverSupport.check(DriverSupport.driverAPI().cuCtxSetCurrent(getValue()));
+        check(driverAPI().cuCtxSetCurrent(this));
     }
 
     public void destroy() {
-        DriverSupport.check(DriverSupport.driverAPI().cuCtxDestroy(getValue()));
+        check(driverAPI().cuCtxDestroy(this));
+    }
+
+    public static CudaContextPointer getCurrent() {
+        PointerByReference ptrRef = new PointerByReference();
+        check(driverAPI().cuCtxGetCurrent(ptrRef));
+        return new CudaContextPointer(ptrRef);
+    }
+
+    public static void synchronize() {
+        check(driverAPI().cuCtxSynchronize());
     }
 }

@@ -15,6 +15,8 @@ public interface DriverAPI extends Library {
 
     int cuDeviceGetName(Pointer name, int len, Pointer dev);
 
+    int cuDeviceGetAttribute(Pointer pi, int attrib, Pointer dev);
+
     int cuDeviceTotalMem(PointerByReference bytes, Pointer dev);
 
     int cuDriverGetVersion(Pointer driverVersion);
@@ -24,9 +26,17 @@ public interface DriverAPI extends Library {
 
     int cuDevicePrimaryCtxRetain(PointerByReference pctx, Pointer dev);
 
+    int cuDevicePrimaryCtxRelease(Pointer dev);
+
     int cuCtxDestroy(Pointer ctx);
 
+    int cuCtxGetCurrent(PointerByReference pctx);
+
+    int cuCtxGetDevice(PointerByReference device);
+
     int cuCtxSetCurrent(Pointer ctx);
+
+    int cuCtxPushCurrent(Pointer ctx);
 
     int cuCtxSynchronize();
 

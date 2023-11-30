@@ -7,7 +7,6 @@ import org.yah.tools.jcuda.jna.NVRTC;
 import org.yah.tools.jcuda.support.program.CudaProgramPointer;
 
 import javax.annotation.Nullable;
-import java.util.Objects;
 
 import static org.yah.tools.jcuda.support.NTSHelper.readNTS;
 
@@ -23,10 +22,10 @@ public class NVRTCSupport {
 
     public static String getProgramLog(CudaProgramPointer prog) {
         PointerByReference logSizeRet = new PointerByReference();
-        NVRTCSupport.check(NVRTCSupport.nvrtc().nvrtcGetProgramLogSize(prog.getValue(), logSizeRet));
+        NVRTCSupport.check(NVRTCSupport.nvrtc().nvrtcGetProgramLogSize(prog, logSizeRet));
         long size = Pointer.nativeValue(logSizeRet.getValue());
         try (Memory log = new Memory(size)) {
-            NVRTCSupport.check(NVRTCSupport.nvrtc().nvrtcGetProgramLog(prog.getValue(), log));
+            NVRTCSupport.check(NVRTCSupport.nvrtc().nvrtcGetProgramLog(prog, log));
             return readNTS(log, size);
         }
     }

@@ -14,7 +14,7 @@ class CudaProgramBuilderTest {
         String src = loadSource("nvrtcTest.cu");
         CudaProgramPointer program = CudaProgramBuilder.create(src).build();
         assertNotNull(program);
-        assertNotEquals(0, Pointer.nativeValue(program.getValue()));
+        assertNotEquals(0, Pointer.nativeValue(program));
         try (Memory ptx = program.getPTX()){
             assertNotNull(ptx);
             assertEquals(program.getPTXSize(), ptx.size());
@@ -30,7 +30,6 @@ class CudaProgramBuilderTest {
             fail("Should have thrown BuildProgramException");
         } catch (BuildProgramException e) {
             assertTrue(e.getLog().contains("1 error detected in the compilation of \"test_program\"."));
-            System.out.println(e.getLog());
         }
     }
 

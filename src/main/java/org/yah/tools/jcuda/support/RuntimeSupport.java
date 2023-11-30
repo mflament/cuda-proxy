@@ -1,6 +1,8 @@
 package org.yah.tools.jcuda.support;
 
+import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
+import com.sun.jna.ptr.PointerByReference;
 import org.yah.tools.jcuda.jna.RuntimeAPI;
 
 import javax.annotation.Nullable;
@@ -26,4 +28,12 @@ public class RuntimeSupport {
         }
     }
 
+    public static String getRuntimeGetVersion() {
+        PointerByReference ptr = new PointerByReference();
+        try (Memory memory = new Memory(Integer.BYTES)) {
+            check(runtimeAPI().cudaRuntimeGetVersion(memory));
+            int ver = memory.getInt(0);
+            return String.format("%d.%d", ver / 1000, ver % 1000);
+        }
+    }
 }

@@ -8,6 +8,8 @@ public interface RuntimeAPI extends Library {
 
     int CUDA_SUCCESS = 0;
 
+    int CUDA_ERROR_INVALID_IMAGE = 200;
+
     enum cudaMemcpyKind {
         /**
          * < Host   -> Host
@@ -30,8 +32,6 @@ public interface RuntimeAPI extends Library {
          */
         cudaMemcpyDefaultDevice,
     }
-
-    int cudaInitDevice(int device, int deviceFlags, int flags);
 
     int cudaRuntimeGetVersion(Pointer runtimeVersion);
 

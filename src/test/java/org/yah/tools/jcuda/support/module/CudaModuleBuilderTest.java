@@ -6,7 +6,9 @@ import com.sun.jna.ptr.PointerByReference;
 import org.junit.jupiter.api.Test;
 import org.yah.tools.jcuda.support.CudaContextPointer;
 import org.yah.tools.jcuda.support.DriverSupport;
+import org.yah.tools.jcuda.support.RuntimeSupport;
 import org.yah.tools.jcuda.support.TestsHelper;
+import org.yah.tools.jcuda.support.device.DevicePointer;
 import org.yah.tools.jcuda.support.module.annotations.GridDim;
 import org.yah.tools.jcuda.support.module.annotations.Kernel;
 import org.yah.tools.jcuda.support.program.CudaProgramBuilder;
@@ -17,6 +19,7 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.yah.tools.jcuda.support.DriverSupport.check;
 import static org.yah.tools.jcuda.support.DriverSupport.driverAPI;
+import static org.yah.tools.jcuda.support.RuntimeSupport.runtimeAPI;
 
 class CudaModuleBuilderTest {
 
@@ -24,13 +27,24 @@ class CudaModuleBuilderTest {
 
     @Test
     void createModule() {
-        CudaModuleBuilder cudaModuleBuilder = new CudaModuleBuilder();
         String src = TestsHelper.loadSource("module_build_test1.cu");
-        CudaContextPointer context = DriverSupport.createContext(0, 0);
-        CudaProgramPointer program = CudaProgramBuilder.create(src).withProgramName("test_program").build();
+
+        DevicePointer device = DriverSupport.getDevice(0);
+        CudaContextPointer ctx = device.createContext(0);
+        ctx.setCurrent();
+//        CudaContextPointer primaryCtxt = device.createContext(0);
+//        primaryCtxt.setCurrent();
+
+//        DriverSupport.check(DriverSupport.driverAPI().cuCtxGetCurrent(ptr));
+
+        CudaProgramPointer program = CudaProgramBuilder.create(src)
+                .withProgramName("test_program")
+                .withComputeVersion(device)
+                .build();
+
+        CudaModuleBuilder cudaModuleBuilder = new CudaModuleBuilder();
         TestModule module = cudaModuleBuilder.createModule(program, TestModule.class);
 
-        context.setCurrent();
         int N = 512;
         int[] a = randomInts(N), b = randomInts(N);
         try (Memory hostMemory = new Memory(N * (long) Integer.BYTES)) {

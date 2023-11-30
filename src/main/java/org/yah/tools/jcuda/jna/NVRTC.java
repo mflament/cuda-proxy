@@ -15,7 +15,7 @@ public interface NVRTC extends Library {
 
     int nvrtcCreateProgram(PointerByReference prog, Pointer src, Pointer name, int numHeaders, Pointer headers, Pointer includeNames);
 
-    int nvrtcDestroyProgram(Pointer prog);
+    int nvrtcDestroyProgram(PointerByReference prog);
 
     int nvrtcCompileProgram(Pointer prog, int numOptions, Pointer options);
 

@@ -45,7 +45,14 @@ public final class CudaSupport {
     }
 
     private static String getRuntimeLibraryName() {
-        Path path = findLibraryFile("cudart");
+        String namePrefix;
+        if (Platform.isWindows())
+            namePrefix = "cudart64";
+        else if (Platform.isLinux())
+            namePrefix = "libcudart";
+        else
+            throw new UnsupportedOperationException("Unsupported platform " + System.getProperty("os.name"));
+        Path path = findLibraryFile(namePrefix);
         return path.toAbsolutePath().toString();
     }
 
@@ -66,12 +73,14 @@ public final class CudaSupport {
         Path libraryPath;
         if (!Platform.is64Bit())
             throw new IllegalStateException("Only 64bits platform are supported");
+
         if (Platform.isWindows())
             libraryPath = cudaPath.resolve("bin");
         else if (Platform.isLinux())
             libraryPath = cudaPath.resolve("lib64");
         else
             throw new IllegalStateException("Unsupported platform " + System.getProperty("os.name"));
+
         try (Stream<Path> stream = Files.list(libraryPath)) {
             return stream.filter(createLibraryPredicate(name)).findFirst().orElseThrow(() -> new IllegalStateException("Cuda library " + name + " not found in " + libraryPath));
         } catch (IOException e) {
@@ -80,7 +89,7 @@ public final class CudaSupport {
     }
 
     private static Predicate<Path> createLibraryPredicate(String name) {
-        String ext = Platform.isWindows() ? "dll" : "so";
+        String ext = Platform.isWindows() ? ".dll" : ".so";
         return path -> {
             String fileName = path.getFileName().toString();
             return fileName.startsWith(name) && fileName.endsWith(ext);
