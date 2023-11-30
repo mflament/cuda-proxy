@@ -6,7 +6,6 @@ import com.sun.jna.ptr.PointerByReference;
 import org.junit.jupiter.api.Test;
 import org.yah.tools.jcuda.support.CudaContextPointer;
 import org.yah.tools.jcuda.support.DriverSupport;
-import org.yah.tools.jcuda.support.RuntimeSupport;
 import org.yah.tools.jcuda.support.TestsHelper;
 import org.yah.tools.jcuda.support.device.DevicePointer;
 import org.yah.tools.jcuda.support.module.annotations.GridDim;
@@ -19,7 +18,6 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.yah.tools.jcuda.support.DriverSupport.check;
 import static org.yah.tools.jcuda.support.DriverSupport.driverAPI;
-import static org.yah.tools.jcuda.support.RuntimeSupport.runtimeAPI;
 
 class CudaModuleBuilderTest {
 
@@ -43,13 +41,12 @@ class CudaModuleBuilderTest {
                 .build();
 
         CudaModuleBuilder cudaModuleBuilder = new CudaModuleBuilder();
-        TestModule module = cudaModuleBuilder.createModule(program, TestModule.class);
-
         int N = 512;
         int[] a = randomInts(N), b = randomInts(N);
-        try (Memory hostMemory = new Memory(N * (long) Integer.BYTES)) {
+        try (Memory hostMemory = new Memory(N * (long) Integer.BYTES);
+             TestModule module = cudaModuleBuilder.createModule(program, TestModule.class)) {
             Pointer aPtr = copyToDevice(a, hostMemory), bPtr = copyToDevice(b, hostMemory), cPtr = allocateInts(N);
-            module.sum(Dim.roundup(N, TestModule.BLOCK_DIM), N, aPtr, bPtr, cPtr);
+            module.sum(Dim.blocks(N, TestModule.BLOCK_DIM), N, aPtr, bPtr, cPtr);
 
             check(driverAPI().cuMemcpyDtoH(hostMemory, cPtr, N * (long) Integer.BYTES));
             for (int i = 0; i < N; i++) {
@@ -95,7 +92,7 @@ class CudaModuleBuilderTest {
         return ints;
     }
 
-    public interface TestModule {
+    public interface TestModule extends AutoCloseable {
         int BLOCK_DIM = 1024;
 
         @Kernel(blockDim = {BLOCK_DIM, 1, 1})
@@ -103,13 +100,16 @@ class CudaModuleBuilderTest {
 
         @Kernel(name = "sum", blockDim = {BLOCK_DIM, 1, 1})
         void sum2(int N, @GridDim(dim = DimName.x, converter = DeviceIntArrayGridDimConverter.class) DeviceIntArray a, DeviceIntArray b, DeviceIntArray c);
+
+        @Override
+        void close();
     }
 
     public static final class DeviceIntArrayGridDimConverter implements GridDimConverter<DeviceIntArray>, GridDimsConverter<DeviceIntArray> {
 
         @Override
         public int toDim(DeviceIntArray arg, Dim blockDim) {
-            return Dim.roundup(arg.length, blockDim.x());
+            return Dim.blocks(arg.length, blockDim.x());
         }
 
         @Override

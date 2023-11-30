@@ -4,6 +4,7 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
+import javax.annotation.Nullable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Iterator;
@@ -17,16 +18,18 @@ import static org.yah.tools.jcuda.support.DriverSupport.driverAPI;
 
 public class KernelsInvocationHandler implements InvocationHandler {
 
+    private final Pointer module;
     private final Map<Method, KernelInvocation> kernelInvocations;
 
     private final Memory stack;
     private final Memory parameterPointers;
 
-    public KernelsInvocationHandler(List<KernelInvocation> kernelInvocations) {
-        this(kernelInvocations, 1024);
+    public KernelsInvocationHandler(Pointer module, List<KernelInvocation> kernelInvocations) {
+        this(module, kernelInvocations, 1024);
     }
 
-    public KernelsInvocationHandler(List<KernelInvocation> kernelInvocations, int stackSize) {
+    public KernelsInvocationHandler(Pointer module, List<KernelInvocation> kernelInvocations, int stackSize) {
+        this.module = module;
         this.kernelInvocations = kernelInvocations.stream().collect(Collectors.toMap(KernelInvocation::method, Function.identity()));
         stack = new Memory(stackSize);
         int pointersCount = kernelInvocations.stream().mapToInt(KernelInvocation::getKernelParameterCount).max().orElse(0);
@@ -35,6 +38,11 @@ public class KernelsInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
+        if (method.getName().equals("close") && method.getParameterCount() == 0) {
+            check(driverAPI().cuModuleUnload(module));
+            return null;
+        }
+
         KernelInvocation kernelInvocation = kernelInvocations.get(method);
         if (kernelInvocation == null)
             throw new IllegalStateException("Method " + method.getName() + " is not a kernel method");

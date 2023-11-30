@@ -21,6 +21,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -123,22 +124,25 @@ public class CudaModuleBuilder {
 
             List<KernelInvocation> kernelInvocations = new ArrayList<>();
             for (Method method : kernelMethods) {
-                Kernel annotation = checkKernel(method);
-                String name = annotation.name().isBlank() ? method.getName() : annotation.name();
-                Dim blockDim = new Dim(annotation.blockDim());
-                GridDimFactory gridDimFactory = createGridDimFactory(method, blockDim);
-                Parameter[] parameters = method.getParameters();
-                List<KernelArgumentWriter<Object>> argumentWriters = new ArrayList<>(parameters.length);
-                for (Parameter parameter : parameters)
-                    argumentWriters.add(createArgumentWrite(parameter));
-                PointerByReference function = getFunction(module, name);
+                Kernel annotation = method.getAnnotation(Kernel.class);
+                if (annotation != null) {
+                    checkKernel(method);
+                    String name = annotation.name().isBlank() ? method.getName() : annotation.name();
+                    Dim blockDim = new Dim(annotation.blockDim());
+                    GridDimFactory gridDimFactory = createGridDimFactory(method, blockDim);
+                    Parameter[] parameters = method.getParameters();
+                    List<KernelArgumentWriter<Object>> argumentWriters = new ArrayList<>(parameters.length);
+                    for (Parameter parameter : parameters)
+                        argumentWriters.add(createArgumentWrite(parameter));
+                    PointerByReference function = getFunction(module, name);
 
-                KernelInvocation kernelInvocation = new KernelInvocation(method, function, blockDim, gridDimFactory,
-                        argumentWriters, annotation.sharedMemory());
-                kernelInvocations.add(kernelInvocation);
+                    KernelInvocation kernelInvocation = new KernelInvocation(method, function, blockDim, gridDimFactory,
+                            argumentWriters, annotation.sharedMemory());
+                    kernelInvocations.add(kernelInvocation);
+                }
             }
-            InvocationHandler invocationHandler = new KernelsInvocationHandler(kernelInvocations);
-            return (T) Proxy.newProxyInstance(nativeInterface.getClassLoader(), new Class<?>[]{nativeInterface}, invocationHandler);
+            InvocationHandler invocationHandler = new KernelsInvocationHandler(module.getValue(), kernelInvocations);
+            return (T) Proxy.newProxyInstance( nativeInterface.getClassLoader(), new Class<?>[]{nativeInterface}, invocationHandler);
         }
     }
 
@@ -208,13 +212,9 @@ public class CudaModuleBuilder {
     }
 
 
-    private static Kernel checkKernel(Method kernelMethod) {
-        Kernel annotation = kernelMethod.getAnnotation(Kernel.class);
-        if (annotation == null)
-            throw new IllegalStateException("no kernel annotation on method " + kernelMethod);
+    private static void checkKernel(Method kernelMethod) {
         if (kernelMethod.getReturnType() != Void.TYPE)
             throw new KernelBindingException("Kernel method " + kernelMethod + " must return void");
-        return annotation;
     }
 
     private static final class GridDimSupplier {
@@ -294,19 +294,13 @@ public class CudaModuleBuilder {
         return methods;
     }
 
-    private static void collectKernelMethods(Class<?> container, List<Method> bindings) {
+    private static void collectKernelMethods(Class<?> container, List<Method> methods) {
         Class<?>[] interfaces = container.getInterfaces();
         for (Class<?> parent : interfaces) {
-            collectKernelMethods(parent, bindings);
+            collectKernelMethods(parent, methods);
         }
-
         Method[] kernelMethods = container.getDeclaredMethods();
-        for (Method method : kernelMethods) {
-            Kernel annotation = method.getAnnotation(Kernel.class);
-            if (annotation != null) {
-                bindings.add(method);
-            }
-        }
+        methods.addAll(Arrays.asList(kernelMethods));
     }
 
     private static final class TypeArgumentWriter<T> {

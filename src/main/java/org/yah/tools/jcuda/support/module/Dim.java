@@ -27,12 +27,20 @@ public class Dim {
         return z;
     }
 
-
-    public static Dim createGrid(Dim gridThreads, Dim blockDim) {
-        return new Dim(roundup(gridThreads.x, blockDim.x), roundup(gridThreads.y, blockDim.y), roundup(gridThreads.z, blockDim.z));
+    @Override
+    public String toString() {
+        return "{" +
+                "x=" + x +
+                ", y=" + y +
+                ", z=" + z +
+                '}';
     }
 
-    public static int roundup(int a, int b) {
-        return (int) Math.ceil(a / (double) b);
+    public static Dim createGrid(Dim gridThreads, Dim blockDim) {
+        return new Dim(blocks(gridThreads.x, blockDim.x), blocks(gridThreads.y, blockDim.y), blocks(gridThreads.z, blockDim.z));
+    }
+
+    public static int blocks(int threads, int blockDim) {
+        return (int) Math.ceil(threads / (double) blockDim);
     }
 }
