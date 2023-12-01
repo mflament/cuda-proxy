@@ -4,7 +4,6 @@ import com.sun.jna.ptr.PointerByReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yah.tools.jcuda.jna.DriverAPI;
-import org.yah.tools.jcuda.support.device.CUdevice_attribute;
 import org.yah.tools.jcuda.support.device.DevicePointer;
 
 import javax.annotation.Nullable;

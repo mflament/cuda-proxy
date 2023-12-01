@@ -9,7 +9,9 @@ import org.yah.tools.jcuda.support.DriverSupport;
 import org.yah.tools.jcuda.support.TestsHelper;
 import org.yah.tools.jcuda.support.device.DevicePointer;
 import org.yah.tools.jcuda.support.module.annotations.GridDim;
+import org.yah.tools.jcuda.support.module.annotations.GridThreads;
 import org.yah.tools.jcuda.support.module.annotations.Kernel;
+import org.yah.tools.jcuda.support.module.services.Writable;
 import org.yah.tools.jcuda.support.program.CudaProgramBuilder;
 import org.yah.tools.jcuda.support.program.CudaProgramPointer;
 
@@ -30,10 +32,6 @@ class CudaModuleBuilderTest {
         DevicePointer device = DriverSupport.getDevice(0);
         CudaContextPointer ctx = device.createContext(0);
         ctx.setCurrent();
-//        CudaContextPointer primaryCtxt = device.createContext(0);
-//        primaryCtxt.setCurrent();
-
-//        DriverSupport.check(DriverSupport.driverAPI().cuCtxGetCurrent(ptr));
 
         CudaProgramPointer program = CudaProgramBuilder.create(src)
                 .withProgramName("test_program")
@@ -46,7 +44,7 @@ class CudaModuleBuilderTest {
         try (Memory hostMemory = new Memory(N * (long) Integer.BYTES);
              TestModule module = cudaModuleBuilder.createModule(program, TestModule.class)) {
             Pointer aPtr = copyToDevice(a, hostMemory), bPtr = copyToDevice(b, hostMemory), cPtr = allocateInts(N);
-            module.sum(Dim.blocks(N, TestModule.BLOCK_DIM), N, aPtr, bPtr, cPtr);
+            module.sum(dim3.fromThreads(new dim3(N), new dim3(TestModule.BLOCK_DIM)), N, aPtr, bPtr, cPtr);
 
             check(driverAPI().cuMemcpyDtoH(hostMemory, cPtr, N * (long) Integer.BYTES));
             for (int i = 0; i < N; i++) {
@@ -56,9 +54,9 @@ class CudaModuleBuilderTest {
             }
             CudaContextPointer.synchronize();
 
-            DeviceIntArray aIntArray = new DeviceIntArray(aPtr, N);
-            DeviceIntArray bIntArray = new DeviceIntArray(bPtr, N);
-            DeviceIntArray cIntArray = new DeviceIntArray(cPtr, N);
+            DeviceIntArray aIntArray = new DeviceIntArray(aPtr);
+            DeviceIntArray bIntArray = new DeviceIntArray(bPtr);
+            DeviceIntArray cIntArray = new DeviceIntArray(cPtr);
             module.sum2(N, aIntArray, bIntArray, cIntArray);
             CudaContextPointer.synchronize();
 
@@ -96,42 +94,25 @@ class CudaModuleBuilderTest {
         int BLOCK_DIM = 1024;
 
         @Kernel(blockDim = {BLOCK_DIM, 1, 1})
-        void sum(@GridDim(dim = DimName.x, exposed = false) int gridDimX, int N, Pointer a, Pointer b, Pointer c);
+        void sum(@GridDim dim3 gridDim, int N, Pointer a, Pointer b, Pointer c);
 
         @Kernel(name = "sum", blockDim = {BLOCK_DIM, 1, 1})
-        void sum2(int N, @GridDim(dim = DimName.x, converter = DeviceIntArrayGridDimConverter.class) DeviceIntArray a, DeviceIntArray b, DeviceIntArray c);
+        void sum2(@GridThreads(exposed = true) int N, DeviceIntArray a, DeviceIntArray b, DeviceIntArray c);
 
         @Override
         void close();
     }
 
-    public static final class DeviceIntArrayGridDimConverter implements GridDimConverter<DeviceIntArray>, GridDimsConverter<DeviceIntArray> {
+    public static final class DeviceIntArray implements Writable {
+        private final Pointer pointer;
 
-        @Override
-        public int toDim(DeviceIntArray arg, Dim blockDim) {
-            return Dim.blocks(arg.length, blockDim.x());
+        public DeviceIntArray(Pointer pointer) {
+            this.pointer = pointer;
         }
 
         @Override
-        public Dim toGridDim(DeviceIntArray arg, Dim blockDim) {
-            return Dim.createGrid(new Dim(arg.length, 1, 1), blockDim);
-        }
-    }
-
-    public static final class DeviceIntArray extends Pointer {
-        private final int length;
-
-        public DeviceIntArray(Pointer ptr, int length) {
-            super(Pointer.nativeValue(ptr));
-            this.length = length;
-        }
-
-        public int length() {
-            return length;
-        }
-
-        public long size() {
-            return length * (long) Integer.BYTES;
+        public Pointer pointer() {
+            return pointer;
         }
     }
 }

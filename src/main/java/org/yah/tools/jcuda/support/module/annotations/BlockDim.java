@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Get the gridDim from this argument during kernel invocation.
+ * Get the blockDim from this argument during kernel invocation.
  * Parameter must be an instance of dim3.
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface GridDim {
+public @interface BlockDim {
 }

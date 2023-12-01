@@ -6,10 +6,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Get the gridDim from this argument during kernel invocation.
- * Parameter must be an instance of dim3.
+ * Extract kernel shared memory size from a parameter
+ * The argument must be an int or a long
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface GridDim {
+public @interface SharedMemory {
+    /**
+     * true if this parameter is also a kernel parameter
+     */
+    boolean exposed() default false;
 }
