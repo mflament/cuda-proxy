@@ -4,22 +4,21 @@ import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.PointerByReference;
 import org.junit.jupiter.api.Test;
-import org.yah.tools.cuda.support.CudaContextPointer;
-import org.yah.tools.cuda.support.DriverSupport;
 import org.yah.tools.cuda.TestsHelper;
-import org.yah.tools.cuda.support.device.DevicePointer;
 import org.yah.tools.cuda.proxy.annotations.GridDim;
 import org.yah.tools.cuda.proxy.annotations.GridThreads;
 import org.yah.tools.cuda.proxy.annotations.Kernel;
 import org.yah.tools.cuda.proxy.services.Writable;
+import org.yah.tools.cuda.support.CudaContextPointer;
+import org.yah.tools.cuda.support.DriverSupport;
+import org.yah.tools.cuda.support.device.DevicePointer;
 import org.yah.tools.cuda.support.program.CudaProgramBuilder;
 import org.yah.tools.cuda.support.program.CudaProgramPointer;
 
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.yah.tools.cuda.support.DriverSupport.check;
-import static org.yah.tools.cuda.support.DriverSupport.driverAPI;
+import static org.yah.tools.cuda.support.DriverSupport.*;
 
 class KernelProxyFactoryTest {
 
@@ -52,13 +51,13 @@ class KernelProxyFactoryTest {
                 int actual = hostMemory.getInt(i * Integer.BYTES);
                 assertEquals(expected, actual);
             }
-            CudaContextPointer.synchronize();
+            synchronizeContext();
 
             DeviceIntArray aIntArray = new DeviceIntArray(aPtr);
             DeviceIntArray bIntArray = new DeviceIntArray(bPtr);
             DeviceIntArray cIntArray = new DeviceIntArray(cPtr);
             module.sum2(N, aIntArray, bIntArray, cIntArray);
-            CudaContextPointer.synchronize();
+            synchronizeContext();
 
             check(driverAPI().cuMemcpyDtoH(hostMemory, cPtr, N * (long) Integer.BYTES));
             for (int i = 0; i < N; i++) {

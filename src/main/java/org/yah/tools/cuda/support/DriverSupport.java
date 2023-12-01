@@ -46,4 +46,7 @@ public class DriverSupport {
         }
     }
 
+    public static void synchronizeContext() {
+        check(driverAPI().cuCtxSynchronize());
+    }
 }

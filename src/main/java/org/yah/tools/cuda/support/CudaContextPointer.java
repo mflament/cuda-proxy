@@ -24,7 +24,4 @@ public class CudaContextPointer extends Pointer {
         return new CudaContextPointer(ptrRef);
     }
 
-    public static void synchronize() {
-        check(driverAPI().cuCtxSynchronize());
-    }
 }

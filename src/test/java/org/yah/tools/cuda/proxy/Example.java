@@ -70,7 +70,7 @@ public class Example {
             // launch the kernel
             module.sum(N, aPtr, bPtr, cPtr);
             // wait for completion, check for error
-            CudaContextPointer.synchronize();
+            DriverSupport.synchronizeContext();
 
             // read back results
             check(driverAPI().cuMemcpyDtoH(hostMemory, cPtr, N * (long) Integer.BYTES));
