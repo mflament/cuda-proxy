@@ -3,6 +3,7 @@ package org.yah.tools.cuda.support.program;
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import org.junit.jupiter.api.Test;
+import org.yah.tools.cuda.support.NTSHelper;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.yah.tools.cuda.TestsHelper.loadSource;
@@ -18,6 +19,7 @@ class CudaProgramBuilderTest {
         try (Memory ptx = program.getPTX()){
             assertNotNull(ptx);
             assertEquals(program.getPTXSize(), ptx.size());
+            System.out.println(NTSHelper.readNTS(ptx, ptx.size()));
         }
         program.destroy();
     }

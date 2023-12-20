@@ -51,6 +51,13 @@ public interface Driver extends Library {
 
     int cuModuleUnload(Pointer hmod);
 
+    // 6.12. Library Management
+    int cuLibraryLoadData(PointerByReference library, Pointer code, Pointer jitOptions, Pointer jitOptionsValues, int numJitOptions, Pointer libraryOptions, Pointer libraryOptionValues, int numLibraryOptions);
+
+    int cuLibraryGetKernel(PointerByReference pKernel, Pointer library, String name);
+
+    int cuKernelGetName(Pointer pointer, Pointer kernel);
+
     // 6.13. Memory Management
     int cuMemAlloc(PointerByReference dptr, long bytesize);
 
